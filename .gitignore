@@ -72,3 +72,4 @@ evidence/
 tmp/
 temp/
 .cache/
+/.tmp.driveupload
