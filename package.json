@@ -1,0 +1,39 @@
+{
+  "name": "simon-ai-agent-studio",
+  "version": "3.1.0",
+  "private": true,
+  "description": "Kurumsal seviye AI Agent orkestrasyon platformu",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:rebuild": "docker compose down && docker compose build && docker compose up -d"
+  },
+  "devDependencies": {
+    "@turbo/gen": "^1.11.2",
+    "prettier": "^3.1.1",
+    "turbo": "^1.11.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/simonai/agent-studio.git"
+  },
+  "author": "Ceyhun Bostancı",
+  "license": "PROPRIETARY"
+}

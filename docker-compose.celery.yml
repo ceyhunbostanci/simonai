@@ -1,0 +1,25 @@
+﻿# Celery Worker Override
+services:
+  celery-worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: simon-celery-worker
+    command: celery -A worker worker --loglevel=info --concurrency=2
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - LITELLM_BASE_URL=http://litellm:4000
+      - LITELLM_API_KEY=sk-simon-local-master
+      - LITELLM_MASTER_KEY=sk-simon-local-master
+      - HTTP_PROXY=http://simon-egress-proxy:3128
+      - HTTPS_PROXY=http://simon-egress-proxy:3128
+      - NO_PROXY=localhost,127.0.0.1,redis,postgres,litellm,ollama
+    depends_on:
+      redis:
+        condition: service_healthy
+      egress-proxy:
+        condition: service_started
+    networks:
+      - default
+    restart: unless-stopped
+

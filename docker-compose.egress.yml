@@ -1,0 +1,22 @@
+﻿# Egress Proxy Override - Squid
+services:
+  egress-proxy:
+    image: ubuntu/squid:latest
+    container_name: simon-egress-proxy
+    ports:
+      - "3128:3128"
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro
+      - squid_logs:/var/log/squid
+    networks:
+      - default
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "squidclient", "-h", "localhost", "http://www.google.com"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  squid_logs:
+

@@ -1,0 +1,292 @@
+================================================================================
+SIMON AI AGENT STUDIO - FAZ 3 KURULUM TALİMATLARI
+================================================================================
+Tarih: 2025-12-30
+Durum: READY TO DEPLOY
+Tahmini Süre: 30 dakika
+
+================================================================================
+1. DOSYALARIN YERLEŞTİRİLMESİ
+================================================================================
+
+PowerShell'de proje dizinine gidin:
+cd C:\Users\ceyhu\Downloads\simon-ai-faz3-complete\simon-ai-agent-studio
+
+Observability dosyalarını kopyalayın (Claude'dan indirdiğiniz):
+- docker-compose.observability.yml → proje root
+- observability/ klasörü → proje root
+
+API metrics dosyasını kopyalayın:
+- api_metrics.py → apps/api/app/metrics.py
+
+================================================================================
+2. PYTHON BAĞIMLILIKLAR
+================================================================================
+
+apps/api/requirements.txt dosyasına ekleyin:
+
+prometheus-client==0.19.0
+prometheus-fastapi-instrumentator==7.0.0
+
+Container'ı rebuild edin:
+docker compose build --no-cache api
+docker restart simon-api
+
+================================================================================
+3. API ENTEGRASYONU
+================================================================================
+
+apps/api/app/main.py dosyasını düzenleyin:
+
+# Imports bölümüne ekleyin:
+from app.metrics import setup_metrics
+
+# FastAPI app oluşturulduktan sonra ekleyin:
+app = FastAPI(title="Simon AI Agent Studio")
+
+# Metrics setup (hemen FastAPI oluşturulduktan sonra)
+setup_metrics(app)
+
+# ... geri kalan kod
+
+================================================================================
+4. SERVIS BAŞLATMA
+================================================================================
+
+Observability stack'i başlatın:
+docker compose -f docker-compose.yml \
+               -f docker-compose.egress.yml \
+               -f docker-compose.celery.yml \
+               -f docker-compose.observability.yml \
+               up -d
+
+Container durumunu kontrol edin:
+docker compose ps
+
+Beklenen: 10/10 container RUNNING
+- simon-api
+- simon-celery-worker
+- simon-postgres
+- simon-redis
+- simon-litellm
+- simon-ollama
+- simon-egress-proxy
+- simon-prometheus
+- simon-grafana
+- simon-loki
+
+================================================================================
+5. ERIŞIM VE DOĞRULAMA
+================================================================================
+
+Prometheus UI:
+http://localhost:9090
+- Status > Targets → tüm target'lar UP olmalı
+- Graph'da sorgu: up{job="simon-api"}
+
+Grafana UI:
+http://localhost:3000
+- Kullanıcı: admin
+- Şifre: admin (ilk girişte değiştirmeniz istenecek)
+
+Dashboards:
+1. Simon AI - System Metrics
+2. Simon AI - Cost Tracking
+3. Simon AI - Agent Performance
+
+Loki (Log Aggregation):
+http://localhost:3100/ready
+- Yanıt: ready
+
+================================================================================
+6. TEST SENARYOLARI
+================================================================================
+
+# Test 1: Metrics endpoint
+curl http://localhost:8000/metrics
+
+Beklenen: Prometheus format metrics
+- http_requests_total
+- tasks_started_total
+- cost_ledger_total_usd
+
+# Test 2: Dashboard veri akışı
+Grafana'da "Simon AI - System Metrics" dashboard'unu açın
+→ API Request Rate panelinde veri görünmeli
+
+# Test 3: Alert rules
+Prometheus'ta: Status > Rules
+→ simon_ai_alerts grubu görünmeli
+→ 8 alert rule tanımlı olmalı
+
+# Test 4: Metrics tracking
+Bir task çalıştırın ve Grafana'da izleyin:
+curl -X POST http://localhost:8000/api/computer-use/screenshot \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.google.com"}'
+
+Grafana "Agent Performance" dashboard'unda:
+- Task Success Rate güncellenecek
+- Screenshot Capture Rate artacak
+
+================================================================================
+7. METRICS KULLANIMI (DEVELOPMENT)
+================================================================================
+
+Backend kodunuzda metrics tracking:
+
+# Örnek 1: Task tracking
+from app.metrics import TaskTracker
+
+async def execute_task(task_id: str):
+    with TaskTracker('code_generation') as tracker:
+        # Task logic
+        result = await generate_code()
+        
+        # Track cost and tokens
+        tracker.set_cost(0.05, 'claude-sonnet-4-5')
+        tracker.set_tokens(1000, 500, 'claude-sonnet-4-5')
+        
+        return result
+
+# Örnek 2: Computer use action
+from app.metrics import track_computer_use_action
+
+async def click_action(x: int, y: int):
+    track_computer_use_action('click')
+    # ... action logic
+
+# Örnek 3: Model failover
+from app.metrics import track_model_failover
+
+async def call_with_failover():
+    try:
+        return await call_primary_model()
+    except Exception:
+        track_model_failover('claude-sonnet-4-5', 'gpt-4o', 'rate_limit')
+        return await call_failover_model()
+
+================================================================================
+8. ALERT KURALLAR VE AKSIYON
+================================================================================
+
+Tanımlı Alert'ler:
+
+1. HighErrorRate (>5%)
+   Aksiyon: API loglarını kontrol et, hata pattern'i bul
+
+2. HighLatency (P95 > 2.5s)
+   Aksiyon: Slow query analizi, cache optimization
+
+3. QueueBacklog (>50 tasks)
+   Aksiyon: Celery worker sayısını artır
+
+4. HighMemoryUsage (>80%)
+   Aksiyon: Container restart, memory leak kontrolü
+
+5. CostBudgetThreshold (>80%)
+   Aksiyon: Model routing optimize et, budget artır
+
+6. ContainerDown
+   Aksiyon: Container restart, health check inceleme
+
+7. HighFailoverRate
+   Aksiyon: Primary model availability kontrol
+
+8. ScreenshotStorageHigh (>5GB)
+   Aksiyon: TTL policy kontrol, eski screenshot'ları temizle
+
+Alert test:
+# Manuel alert tetikleme (geliştirme ortamında)
+# Prometheus'ta: Status > Runtime & Build Information
+
+================================================================================
+9. MAINTENANCE VE BACKUP
+================================================================================
+
+Log retention:
+- Loki: 30 gün (config: loki-config.yml)
+- Prometheus: Default 15 gün
+
+Backup:
+# Prometheus data
+docker run --rm -v simon-ai-agent-studio_prometheus-data:/data \
+  -v $(pwd)/backup:/backup alpine \
+  tar czf /backup/prometheus-$(date +%Y%m%d).tar.gz /data
+
+# Grafana data (dashboards)
+docker run --rm -v simon-ai-agent-studio_grafana-data:/data \
+  -v $(pwd)/backup:/backup alpine \
+  tar czf /backup/grafana-$(date +%Y%m%d).tar.gz /data
+
+Temizlik:
+# Eski Prometheus data
+docker exec simon-prometheus promtool tsdb list /prometheus
+
+# Loki compaction (otomatik)
+# Config: compaction_interval: 10m
+
+================================================================================
+10. TROUBLESHOOTING
+================================================================================
+
+Problem: Prometheus targets DOWN
+Çözüm:
+1. Container network kontrol: docker network inspect simon-network
+2. API health check: curl http://localhost:8000/health
+3. Prometheus logs: docker logs simon-prometheus
+
+Problem: Grafana dashboard veri göstermiyor
+Çözüm:
+1. Datasource kontrol: Grafana > Configuration > Data Sources
+2. Query test: Grafana > Explore
+3. Time range: Son 1 saat seçili mi?
+
+Problem: Metrics endpoint 404
+Çözüm:
+1. API restart: docker restart simon-api
+2. Metrics import: apps/api/app/main.py'de setup_metrics çağrısı var mı?
+3. Requirements: prometheus-fastapi-instrumentator yüklü mü?
+
+Problem: Alert firing ama notification yok
+Çözüm:
+AlertManager kurulumu (V1+):
+- Slack/email integration
+- PagerDuty için webhook
+
+================================================================================
+11. SONRAKI ADIMLAR (V1+)
+================================================================================
+
+- AlertManager kurulumu (Slack/Email notifications)
+- Custom Grafana panels (model comparison, cost trends)
+- Long-term storage (Prometheus remote write to Mimir/Thanos)
+- Distributed tracing (OpenTelemetry + Tempo)
+- SLO/SLI tracking
+- Anomaly detection (ML-based)
+
+================================================================================
+12. BAŞARI KRİTERLERİ
+================================================================================
+
+Faz 3 tamamlanma checklist:
+
+[ ] 10 container çalışıyor (3 yeni: prometheus, grafana, loki)
+[ ] Prometheus /metrics endpoint'i erişilebilir
+[ ] Grafana 3 dashboard görünüyor
+[ ] Alert rules tanımlı (8 rule)
+[ ] Metrics tracking çalışıyor (test task)
+[ ] Cost tracking dashboard veri gösteriyor
+[ ] API latency monitored
+[ ] Error rate tracked
+
+================================================================================
+HAZIRLAYANLAR
+================================================================================
+AI: Claude (Anthropic) - Sonnet 4.5
+Tarih: 30 Aralık 2025
+Token: ~83k
+Durum: READY FOR DEPLOYMENT
+
+Sonraki Faz: FAZ 4 (Production Hardening)
+================================================================================

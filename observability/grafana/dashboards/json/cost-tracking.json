@@ -1,0 +1,194 @@
+{
+  "dashboard": {
+    "title": "Simon AI - Cost Tracking",
+    "tags": ["simon-ai", "cost", "finance"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "refresh": "1m",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+        "type": "stat",
+        "title": "Total Cost (Today)",
+        "targets": [
+          {
+            "expr": "sum(increase(cost_ledger_total_usd[24h]))",
+            "legendFormat": "Total Cost"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 30, "color": "yellow"},
+                {"value": 50, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+        "type": "stat",
+        "title": "Monthly Cost",
+        "targets": [
+          {
+            "expr": "sum(cost_ledger_total_usd)",
+            "legendFormat": "Month to Date"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "thresholds": {
+              "mode": "percentage",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 80, "color": "yellow"},
+                {"value": 100, "color": "red"}
+              ]
+            },
+            "max": 100
+          }
+        }
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+        "type": "gauge",
+        "title": "Budget Usage",
+        "targets": [
+          {
+            "expr": "(sum(cost_ledger_total_usd) / scalar(cost_budget_monthly_usd)) * 100",
+            "legendFormat": "Budget %"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 80, "color": "yellow"},
+                {"value": 95, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "type": "graph",
+        "title": "Cost by Model",
+        "targets": [
+          {
+            "expr": "sum(rate(cost_ledger_total_usd[1h])) by (model)",
+            "legendFormat": "{{model}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "currencyUSD", "label": "Cost/hour"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "type": "piechart",
+        "title": "Cost Distribution",
+        "targets": [
+          {
+            "expr": "sum(cost_ledger_total_usd) by (model)",
+            "legendFormat": "{{model}}"
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "right"
+          },
+          "pieType": "pie",
+          "displayLabels": ["percent"]
+        }
+      },
+      {
+        "id": 6,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "type": "graph",
+        "title": "Token Usage",
+        "targets": [
+          {
+            "expr": "rate(tokens_used_total[5m])",
+            "legendFormat": "Tokens/sec"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Tokens/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 7,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "type": "table",
+        "title": "Top Cost Contributors",
+        "targets": [
+          {
+            "expr": "topk(10, sum(cost_ledger_total_usd) by (task_type, model))",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "indexByName": {},
+              "renameByName": {
+                "task_type": "Task Type",
+                "model": "Model",
+                "Value": "Cost (USD)"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

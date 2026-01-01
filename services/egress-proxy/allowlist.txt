@@ -1,0 +1,66 @@
+# Simon AI Agent Studio - Egress Proxy Allowlist
+# Version: 3.1.0
+# 
+# CRITICAL SECURITY: Only these domains are accessible from UI Runner
+# All other domains will be BLOCKED
+# 
+# Format: One domain per line, prefix with dot for subdomains
+# Example: .example.com allows *.example.com
+
+# ============================================================
+# AI PROVIDERS
+# ============================================================
+.anthropic.com
+.openai.com
+.googleapis.com
+api.anthropic.com
+api.openai.com
+generativelanguage.googleapis.com
+
+# ============================================================
+# SIMON AI INFRASTRUCTURE
+# ============================================================
+.simonai.com
+.vercel.app
+simonai.vercel.app
+
+# ============================================================
+# DEVELOPMENT & TESTING
+# ============================================================
+.github.com
+.githubusercontent.com
+api.github.com
+raw.githubusercontent.com
+
+# ============================================================
+# CDN & ASSETS (if needed for UI automation)
+# ============================================================
+.cloudflare.com
+.cdnjs.com
+cdn.jsdelivr.net
+
+# ============================================================
+# COMMON WEB SERVICES (Add as needed)
+# ============================================================
+# .google.com  # Uncomment if Google services needed
+# .stripe.com  # Uncomment if payment integration needed
+# .aws.amazon.com  # Uncomment if AWS services needed
+
+# ============================================================
+# NOTES
+# ============================================================
+# 
+# MVP-1 Browser Sandbox Scope:
+# - Web application testing
+# - Form automation
+# - Screenshot-based validation
+# 
+# Desktop VM (MVP-2) requires more permissive rules
+# 
+# Review this list monthly for security
+# Remove unused domains to minimize attack surface
+# 
+# To add a new domain:
+# 1. Add here
+# 2. Restart egress-proxy: docker compose restart egress-proxy
+# 3. Update documentation in /infra/docs/security.md

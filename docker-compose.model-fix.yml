@@ -1,0 +1,5 @@
+﻿services:
+  api:
+    environment:
+      - SIMON_DEFAULT_MODEL=qwen2.5:1.5b
+      - SIMON_MODEL_ALLOWLIST=qwen2.5:1.5b

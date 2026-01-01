@@ -1,0 +1,215 @@
+{
+  "dashboard": {
+    "title": "Simon AI - Agent Performance",
+    "tags": ["simon-ai", "agent", "performance"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+        "type": "stat",
+        "title": "Task Success Rate",
+        "targets": [
+          {
+            "expr": "(sum(rate(tasks_completed_total[5m])) / sum(rate(tasks_started_total[5m]))) * 100",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 80, "color": "yellow"},
+                {"value": 95, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+        "type": "stat",
+        "title": "Active Tasks",
+        "targets": [
+          {
+            "expr": "sum(tasks_in_progress)",
+            "legendFormat": "Active"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 5, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+        "type": "stat",
+        "title": "Avg Task Duration",
+        "targets": [
+          {
+            "expr": "avg(rate(task_duration_seconds_sum[5m]) / rate(task_duration_seconds_count[5m]))",
+            "legendFormat": "Avg Duration"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 300, "color": "yellow"},
+                {"value": 600, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "type": "graph",
+        "title": "Task Throughput",
+        "targets": [
+          {
+            "expr": "rate(tasks_completed_total[5m])",
+            "legendFormat": "Completed"
+          },
+          {
+            "expr": "rate(tasks_failed_total[5m])",
+            "legendFormat": "Failed"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Tasks/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "type": "graph",
+        "title": "Model Failover Events",
+        "targets": [
+          {
+            "expr": "rate(model_failover_total[5m])",
+            "legendFormat": "{{from_model}} -> {{to_model}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Failovers/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 6,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "type": "graph",
+        "title": "Computer Use Actions",
+        "targets": [
+          {
+            "expr": "rate(computer_use_actions_total[5m])",
+            "legendFormat": "{{action_type}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Actions/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 7,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "type": "graph",
+        "title": "Screenshot Capture Rate",
+        "targets": [
+          {
+            "expr": "rate(screenshots_captured_total[5m])",
+            "legendFormat": "Captures/sec"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Screenshots/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 8,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24},
+        "type": "table",
+        "title": "Recent Task History",
+        "targets": [
+          {
+            "expr": "topk(20, task_status)",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true, "__name__": true},
+              "indexByName": {},
+              "renameByName": {
+                "task_id": "Task ID",
+                "status": "Status",
+                "model": "Model",
+                "duration": "Duration (s)"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,97 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: simon-postgres
+    environment:
+      POSTGRES_DB: simon_ai
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: simon-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: simon-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: simon-litellm
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/litellm
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - OLLAMA_API_BASE=http://ollama:11434
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml
+    command: --config /app/config.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: simon-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/simon_ai
+      - REDIS_URL=redis://redis:6379
+      - LITELLM_URL=http://litellm:4000
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - LOG_LEVEL=INFO
+      - ENABLE_METRICS=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      litellm:
+        condition: service_started
+    volumes:
+      - ./apps/api:/app
+
+volumes:
+  postgres_data:
+  ollama_data:
+
+networks:
+  simon-network:
+    name: simon-network
+    driver: bridge

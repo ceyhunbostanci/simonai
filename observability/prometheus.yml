@@ -1,0 +1,61 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'simon-ai'
+    environment: 'production'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+      # AlertManager eklenebilir (opsiyonel)
+
+rule_files:
+  - 'alert.rules.yml'
+
+scrape_configs:
+  # Prometheus kendisi
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Simon API (FastAPI)
+  - job_name: 'simon-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['simon-api:8000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'simon-api'
+
+  # LiteLLM Gateway
+  - job_name: 'simon-litellm'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['simon-litellm:4000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'simon-litellm'
+
+  # Ollama (eğer metrics expose ediyorsa)
+  - job_name: 'simon-ollama'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['simon-ollama:11434']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'simon-ollama'
+
+  # PostgreSQL Exporter (opsiyonel - eklenebilir)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+
+  # Redis Exporter (opsiyonel - eklenebilir)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']

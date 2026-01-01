@@ -1,0 +1,233 @@
+model_list:
+  # ============================================================
+  # ANTHROPIC CLAUDE MODELS
+  # ============================================================
+  - model_name: claude-sonnet-4.5
+    litellm_params:
+      model: anthropic/claude-sonnet-4-20250514
+      api_key: os.environ/CLAUDE_API_KEY
+      max_tokens: 4096
+      temperature: 1.0
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: true
+      input_cost_per_token: 0.000003
+      output_cost_per_token: 0.000015
+      max_tokens: 200000
+
+  - model_name: claude-opus-4.5
+    litellm_params:
+      model: anthropic/claude-opus-4-20250514
+      api_key: os.environ/CLAUDE_API_KEY
+      max_tokens: 4096
+      temperature: 1.0
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: true
+      input_cost_per_token: 0.000005
+      output_cost_per_token: 0.000025
+      max_tokens: 200000
+
+  # ============================================================
+  # OPENAI GPT MODELS
+  # ============================================================
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+      max_tokens: 4096
+      temperature: 1.0
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: true
+      input_cost_per_token: 0.0000025
+      output_cost_per_token: 0.00001
+      max_tokens: 128000
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+      max_tokens: 4096
+      temperature: 1.0
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: true
+      input_cost_per_token: 0.00000015
+      output_cost_per_token: 0.0000006
+      max_tokens: 128000
+
+  # ============================================================
+  # GOOGLE GEMINI MODELS
+  # ============================================================
+  - model_name: gemini-1.5-pro
+    litellm_params:
+      model: google/gemini-1.5-pro
+      api_key: os.environ/GOOGLE_API_KEY
+      max_tokens: 4096
+      temperature: 1.0
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: true
+      input_cost_per_token: 0.00000125
+      output_cost_per_token: 0.000005
+      max_tokens: 1000000
+
+  # ============================================================
+  # OLLAMA LOCAL MODELS (FREE)
+  # ============================================================
+  - model_name: ollama/gemma3
+    litellm_params:
+      model: ollama/gemma3
+      api_base: http://host.docker.internal:11434
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.0
+      output_cost_per_token: 0.0
+
+  - model_name: ollama/qwen2.5
+    litellm_params:
+      model: ollama/qwen2.5
+      api_base: http://host.docker.internal:11434
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.0
+      output_cost_per_token: 0.0
+
+  - model_name: ollama/qwen2.5-coder
+    litellm_params:
+      model: ollama/qwen2.5-coder
+      api_base: http://host.docker.internal:11434
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.0
+      output_cost_per_token: 0.0
+
+  - model_name: ollama/phi4
+    litellm_params:
+      model: ollama/phi4
+      api_base: http://host.docker.internal:11434
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.0
+      output_cost_per_token: 0.0
+
+  - model_name: ollama/llama3.3
+    litellm_params:
+      model: ollama/llama3.3
+      api_base: http://host.docker.internal:11434
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.0
+      output_cost_per_token: 0.0
+
+  - model_name: ollama/mistral
+    litellm_params:
+      model: ollama/mistral
+      api_base: http://host.docker.internal:11434
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.0
+      output_cost_per_token: 0.0
+
+  - model_name: ollama/deepseek-r1
+    litellm_params:
+      model: ollama/deepseek-r1
+      api_base: http://host.docker.internal:11434
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.0
+      output_cost_per_token: 0.0
+
+  - model_name: ollama/llava
+    litellm_params:
+      model: ollama/llava
+      api_base: http://host.docker.internal:11434
+    model_info:
+      mode: chat
+      supports_vision: true
+      input_cost_per_token: 0.0
+      output_cost_per_token: 0.0
+
+# ============================================================
+# ROUTER SETTINGS
+# ============================================================
+router_settings:
+  routing_strategy: "cost-based-routing" # simple-shuffle, least-busy, latency-based, cost-based-routing
+  
+  # Retry and timeout
+  num_retries: 2
+  timeout: 60
+  
+  # Fallback models
+  fallbacks:
+    - claude-sonnet-4.5: ["gpt-4o", "gemini-1.5-pro"]
+    - gpt-4o: ["claude-sonnet-4.5", "gemini-1.5-pro"]
+    - gemini-1.5-pro: ["claude-sonnet-4.5", "gpt-4o"]
+  
+  # Budget controls
+  enable_budget_controls: true
+  
+# ============================================================
+# CACHE SETTINGS (90% cost reduction)
+# ============================================================
+cache:
+  type: "redis"
+  host: "redis"
+  port: 6379
+  ttl: 3600 # 1 hour
+  
+  # Prompt caching rules
+  cache_kwargs:
+    supported_call_types: ["completion", "embedding", "image_generation"]
+    
+# ============================================================
+# GENERAL SETTINGS
+# ============================================================
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  
+  # Logging
+  set_verbose: false
+  json_logs: true
+  
+  # Database (for usage tracking)
+  database_url: os.environ/DATABASE_URL
+  
+  # Success callback (for cost ledger)
+  success_callback: ["langfuse"]
+  
+  # Alerting
+  alerting:
+    - slack # (opsiyonel)
+  
+# ============================================================
+# BUDGET CONTROLS
+# ============================================================
+litellm_settings:
+  # Default request timeout
+  request_timeout: 60
+  
+  # Max budget per user/key
+  max_budget: 100.0 # USD per month
+  budget_duration: "monthly"
+  
+  # Rate limits
+  rpm: 60 # requests per minute
+  tpm: 100000 # tokens per minute
+  
+  # Cost tracking
+  track_cost_callback: true
+
+# ============================================================
+# LANGFUSE INTEGRATION (Observability)
+# ============================================================
+# langfuse_params:
+#   public_key: os.environ/LANGFUSE_PUBLIC_KEY
+#   secret_key: os.environ/LANGFUSE_SECRET_KEY
+#   host: "https://cloud.langfuse.com"

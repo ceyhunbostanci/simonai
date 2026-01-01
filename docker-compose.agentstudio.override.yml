@@ -1,0 +1,16 @@
+services:
+  litellm:
+    environment:
+      # LiteLLM auth açık → master key sk- ile başlamalı
+      LITELLM_MASTER_KEY: "sk-simon-local-master"
+
+  api:
+    environment:
+      SIMON_AUDIT_PATH: /tmp/simon-audit/agent_studio.jsonl
+      SIMON_DEFAULT_MODEL: qwen2.5
+      SIMON_MODEL_ALLOWLIST: qwen2.5
+
+      # API, LiteLLM'e bu key ile gidecek
+      LITELLM_API_KEY: "sk-simon-local-master"
+      LITELLM_MASTER_KEY: "sk-simon-local-master"
+      LITELLM_BASE_URL: "http://litellm:4000"

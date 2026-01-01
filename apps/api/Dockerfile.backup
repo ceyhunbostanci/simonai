@@ -1,0 +1,69 @@
+FROM python:3.11-slim as base
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# ============================================================
+# DEVELOPMENT TARGET
+# ============================================================
+FROM base as development
+
+ENV PYTHONUNBUFFERED=1
+ENV DEBUG=1
+
+# Install development dependencies
+RUN pip install --no-cache-dir \
+    pytest==7.4.4 \
+    pytest-asyncio==0.21.1 \
+    pytest-cov==4.1.0 \
+    black==23.12.1 \
+    ruff==0.1.11
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# ============================================================
+# TEST TARGET
+# ============================================================
+FROM development as test
+
+COPY tests/ tests/
+
+CMD ["pytest", "-v", "--cov=app", "--cov-report=html", "--cov-report=term"]
+
+# ============================================================
+# PRODUCTION TARGET
+# ============================================================
+FROM base as production
+
+ENV PYTHONUNBUFFERED=1
+ENV DEBUG=0
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Expose port
+EXPOSE 8000
+
+# Run application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

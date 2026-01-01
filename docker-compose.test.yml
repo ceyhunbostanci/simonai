@@ -1,0 +1,94 @@
+version: '3.9'
+
+# Test environment - isolated from development/production
+
+services:
+  # Test Database
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: simon-postgres-test
+    environment:
+      - POSTGRES_USER=test
+      - POSTGRES_PASSWORD=test
+      - POSTGRES_DB=simon_ai_test
+    volumes:
+      - ./infra/docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Test Redis
+  redis-test:
+    image: redis:7-alpine
+    container_name: simon-redis-test
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Test Orchestrator
+  orchestrator-test:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: test
+    container_name: simon-orchestrator-test
+    environment:
+      - DATABASE_URL=postgresql://test:test@postgres-test:5432/simon_ai_test
+      - REDIS_URL=redis://redis-test:6379/0
+      - TESTING=1
+      - LOG_LEVEL=DEBUG
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    command: pytest -v --cov=. --cov-report=html --cov-report=term
+
+  # Test Web
+  web-test:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: test
+    container_name: simon-web-test
+    environment:
+      - NEXT_PUBLIC_API_URL=http://orchestrator-test:8000
+      - NODE_ENV=test
+    depends_on:
+      - orchestrator-test
+    networks:
+      - test-network
+    command: npm run test
+
+  # E2E Tests (Playwright)
+  e2e-test:
+    build:
+      context: ./tests
+      dockerfile: Dockerfile.e2e
+    container_name: simon-e2e-test
+    environment:
+      - BASE_URL=http://web-test:3000
+      - API_URL=http://orchestrator-test:8000
+    depends_on:
+      - web-test
+      - orchestrator-test
+    networks:
+      - test-network
+    volumes:
+      - ./tests/e2e:/tests
+      - ./tests/reports:/reports
+    command: npx playwright test --reporter=html
+
+networks:
+  test-network:
+    driver: bridge

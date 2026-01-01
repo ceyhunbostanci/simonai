@@ -1,0 +1,61 @@
+﻿version: '3.9'
+
+services:
+  orchestrator:
+    build:
+      target: development
+    volumes:
+      - ./apps/api:/app
+      - /app/.venv
+    environment:
+      - DEBUG=1
+      - LOG_LEVEL=DEBUG
+      - RELOAD=1
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  ui-runner:
+    build:
+      target: development
+    volumes:
+      - ./services/ui-runner:/app
+    environment:
+      - LOG_LEVEL=DEBUG
+    command: celery -A worker worker --loglevel=debug --concurrency=1
+
+  web:
+    build:
+      target: development
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+
+  admin:
+    build:
+      target: development
+    volumes:
+      - ./apps/admin:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+
+  # Mailhog (GeliÅŸtirme iÃ§in email testing)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: simon-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - simon-network
+
+networks:
+  simon-network:
+    name: simon-network
+    driver: bridge
+

@@ -1,0 +1,220 @@
+"""
+AI Router Service - LiteLLM Integration
+Handles model routing, failover, and API abstraction
+"""
+
+import httpx
+import logging
+from typing import List, Dict, Any, AsyncGenerator
+import json
+
+from app.config import settings
+from app.models.chat import ChatMessage
+
+logger = logging.getLogger(__name__)
+
+
+class AIRouter:
+    """
+    AI Router for multi-model orchestration
+    Integrates with LiteLLM Gateway
+    """
+    
+    def __init__(self):
+        self.litellm_url = settings.LITELLM_URL
+        self.master_key = settings.LITELLM_MASTER_KEY
+        self.timeout = httpx.Timeout(60.0, connect=10.0)
+        
+    def _format_messages(self, messages: List[ChatMessage]) -> List[Dict[str, str]]:
+        """Convert ChatMessage to LiteLLM format"""
+        return [{"role": msg.role, "content": msg.content} for msg in messages]
+    
+    def _get_model_mapping(self, model: str, key_mode: str) -> str:
+        """
+        Map Simon AI model names to LiteLLM model names
+        """
+        # Ollama models (FREE)
+        if key_mode == "free":
+            return f"ollama/{model}"
+        
+        # Direct model names for BYOK
+        return model
+    
+    async def complete(
+        self,
+        messages: List[ChatMessage],
+        model: str,
+        key_mode: str = "free",
+        user_api_key: str | None = None,
+        temperature: float = 1.0,
+        max_tokens: int = 4096,
+    ) -> Dict[str, Any]:
+        """
+        Non-streaming completion
+        """
+        try:
+            litellm_model = self._get_model_mapping(model, key_mode)
+            formatted_messages = self._format_messages(messages)
+            
+            headers = {
+                "Authorization": f"Bearer {self.master_key}",
+                "Content-Type": "application/json",
+            }
+            
+            # Add user API key if BYOK mode
+            if key_mode == "byok" and user_api_key:
+                headers["X-User-API-Key"] = user_api_key
+            
+            payload = {
+                "model": litellm_model,
+                "messages": formatted_messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": False,
+            }
+            
+            logger.info(f"Calling LiteLLM: model={litellm_model}, messages={len(messages)}")
+            
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.litellm_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
+                
+                response.raise_for_status()
+                data = response.json()
+                
+                # Extract response
+                content = data["choices"][0]["message"]["content"]
+                usage = data.get("usage", {})
+                
+                # Calculate cost (basic estimation)
+                cost = self._estimate_cost(model, usage)
+                
+                return {
+                    "content": content,
+                    "usage": {
+                        "input_tokens": usage.get("prompt_tokens", 0),
+                        "output_tokens": usage.get("completion_tokens", 0),
+                        "total_tokens": usage.get("total_tokens", 0),
+                    },
+                    "cost": cost,
+                    "model": litellm_model,
+                }
+                
+        except httpx.HTTPError as e:
+            logger.error(f"LiteLLM HTTP error: {e}")
+            raise Exception(f"AI Router error: {str(e)}")
+        except Exception as e:
+            logger.error(f"AI Router error: {e}", exc_info=True)
+            raise
+    
+    async def stream_complete(
+        self,
+        messages: List[ChatMessage],
+        model: str,
+        key_mode: str = "free",
+        user_api_key: str | None = None,
+        temperature: float = 1.0,
+        max_tokens: int = 4096,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Streaming completion
+        """
+        try:
+            litellm_model = self._get_model_mapping(model, key_mode)
+            formatted_messages = self._format_messages(messages)
+            
+            headers = {
+                "Authorization": f"Bearer {self.master_key}",
+                "Content-Type": "application/json",
+            }
+            
+            if key_mode == "byok" and user_api_key:
+                headers["X-User-API-Key"] = user_api_key
+            
+            payload = {
+                "model": litellm_model,
+                "messages": formatted_messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": True,
+            }
+            
+            logger.info(f"Streaming LiteLLM: model={litellm_model}, messages={len(messages)}")
+            
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.litellm_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                ) as response:
+                    response.raise_for_status()
+                    
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            data_str = line[6:]  # Remove "data: " prefix
+                            
+                            if data_str.strip() == "[DONE]":
+                                break
+                            
+                            try:
+                                data = json.loads(data_str)
+                                
+                                # Extract delta
+                                delta = data["choices"][0].get("delta", {})
+                                content = delta.get("content", "")
+                                
+                                # Usage info (last chunk)
+                                usage = data.get("usage", {})
+                                
+                                yield {
+                                    "delta": {"text": content},
+                                    "usage": {
+                                        "input_tokens": usage.get("prompt_tokens", 0),
+                                        "output_tokens": usage.get("completion_tokens", 0),
+                                    } if usage else {},
+                                }
+                                
+                            except json.JSONDecodeError:
+                                continue
+                                
+        except httpx.HTTPError as e:
+            logger.error(f"LiteLLM streaming error: {e}")
+            raise Exception(f"AI Router streaming error: {str(e)}")
+        except Exception as e:
+            logger.error(f"AI Router streaming error: {e}", exc_info=True)
+            raise
+    
+    def _estimate_cost(self, model: str, usage: Dict[str, int]) -> float:
+        """
+        Estimate cost based on model and token usage
+        """
+        # Cost per 1M tokens
+        cost_map = {
+            "claude-sonnet-4.5": {"input": 3.0, "output": 15.0},
+            "claude-opus-4.5": {"input": 5.0, "output": 25.0},
+            "gpt-4o": {"input": 2.5, "output": 10.0},
+            "gemini-1.5-pro": {"input": 1.25, "output": 5.0},
+        }
+        
+        # Ollama models are free
+        if model.startswith("ollama/"):
+            return 0.0
+        
+        # Get base model name
+        base_model = model.replace("ollama/", "")
+        
+        if base_model not in cost_map:
+            return 0.0
+        
+        costs = cost_map[base_model]
+        input_tokens = usage.get("prompt_tokens", 0)
+        output_tokens = usage.get("completion_tokens", 0)
+        
+        # Calculate cost
+        cost = (input_tokens * costs["input"] + output_tokens * costs["output"]) / 1_000_000
+        
+        return round(cost, 6)

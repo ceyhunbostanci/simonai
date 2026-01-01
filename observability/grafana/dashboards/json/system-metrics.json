@@ -1,0 +1,128 @@
+{
+  "dashboard": {
+    "title": "Simon AI - System Metrics",
+    "tags": ["simon-ai", "system"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "type": "graph",
+        "title": "API Request Rate",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job='simon-api'}[5m])",
+            "legendFormat": "{{method}} {{endpoint}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Requests/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "type": "graph",
+        "title": "API Response Time (P95)",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job='simon-api'}[5m])) by (le))",
+            "legendFormat": "P95 Latency"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Seconds"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "type": "graph",
+        "title": "Error Rate",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{job='simon-api',status=~'5..'}[5m])",
+            "legendFormat": "5xx Errors"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Errors/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "type": "graph",
+        "title": "Container Memory Usage",
+        "targets": [
+          {
+            "expr": "container_memory_usage_bytes{container=~'simon-.*'} / 1024 / 1024",
+            "legendFormat": "{{container}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "mbytes", "label": "Memory (MB)"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "type": "graph",
+        "title": "Celery Queue Length",
+        "targets": [
+          {
+            "expr": "celery_queue_length",
+            "legendFormat": "Queue: {{queue}}"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Tasks"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 6,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "type": "stat",
+        "title": "Container Status",
+        "targets": [
+          {
+            "expr": "up{job=~'simon-.*'}",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "green"}
+              ]
+            },
+            "mappings": [
+              {"type": "value", "options": {"0": {"text": "DOWN"}, "1": {"text": "UP"}}}
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

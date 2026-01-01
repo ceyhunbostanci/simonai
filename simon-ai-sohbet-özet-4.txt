@@ -1,0 +1,299 @@
+===============================================
+SIMON AI AGENT STUDIO - PROJE DURUMU ÖZETİ
+===============================================
+Tarih: 30 Aralık 2025, 19:49 TSI
+Konum: C:\Users\ceyhu\Desktop\simonai
+
+===============================================
+📊 MEVCUT DURUM
+===============================================
+
+ÇALIŞAN COMPONENTLER ✅
+-----------------------
+✅ PostgreSQL (simon-postgres) - Healthy
+✅ Redis (simon-redis) - Healthy
+✅ Ollama (simon-ollama) - Started
+   - Model: qwen2.5:1.5b (986 MB) - YÜKLÜ
+   - OpenAI API: /v1/chat/completions - ÇALIŞIYOR
+   - Generate API: /api/generate - ÇALIŞIYOR
+✅ LiteLLM (simon-litellm) - Started
+✅ API (simon-api) - Started
+
+SORUNLU ALAN ❌
+--------------
+❌ API → Ollama bağlantısı TIMEOUT hatası veriyor
+   - Hata: httpcore.ReadTimeout (120 saniye timeout)
+   - API: http://simon-ollama:11434 adresine bağlanıyor
+   - Ollama: localhost:11434'ten direkt çalışıyor
+   - Network: Container içi DNS/routing sorunu olabilir
+
+TEST SONUÇLARI
+-------------
+✅ Health check: OK
+✅ Session oluşturma: OK  
+✅ Ollama OpenAI endpoint: OK (localhost:11434)
+✅ Ollama Generate endpoint: OK (localhost:11434)
+❌ API message send: 500 Internal Server Error (ConnectError)
+
+===============================================
+🔍 SORUN ANALİZİ
+===============================================
+
+ROOT CAUSE
+----------
+Python kodu (agent_studio_service.py) Ollama'ya HTTP isteği yapıyor 
+ama timeout oluyor. Muhtemel nedenler:
+
+1. NETWORK İZOLASYONU
+   - Container içinden simon-ollama DNS çözümleniyor mu?
+   - Port 11434 container'lar arası erişilebilir mi?
+
+2. ENDPOINT YANLIŞ KULLANIMI
+   - Kod LiteLLM formatında istek yapıyor olabilir
+   - Ama direkt Ollama'ya gidiyor
+   - Format uyumsuzluğu timeout'a sebep olabilir
+
+3. TIMEOUT AYARI
+   - 120 saniye timeout çok uzun
+   - Ollama 2-5 saniyede yanıt veriyor
+   - Bağlantı kurulamamış olabilir
+
+===============================================
+✅ YAPILAN ÇALIŞMALAR (Bu Sohbet)
+===============================================
+
+1. LiteLLM 401 Unauthorized Hatası Çözümü
+   - Endpoint düzeltildi: /chat/completions → /v1/chat/completions
+   - Auth devre dışı bırakıldı: --detailed_debug
+   
+2. Database Connection Hatası Çözümü
+   - SQLAlchemy text() wrapping eklendi
+   - SELECT 1 sorgusu düzeltildi
+
+3. Ollama Model Yükleme
+   - qwen2.5:1.5b modeli başarıyla yüklendi (986 MB)
+   - Ollama model listesi: OK
+
+4. Exception Logging Eklendi
+   - Traceback gösterme eklendi
+   - Timeout hatası tespit edildi
+
+5. Multiple API Configuration Denemeleri
+   - LiteLLM bypass denendi
+   - Direkt Ollama bağlantısı denendi
+   - Environment variables güncellendi
+   - Docker compose override dosyaları oluşturuldu
+
+===============================================
+🎯 SONRAKI ADIMLAR (Yeni Sohbet)
+===============================================
+
+ÖNCELIK 1: NETWORK DEBUG
+-------------------------
+1. Container içinden Ollama'ya curl testi:
+   docker exec simon-api curl -v http://simon-ollama:11434/api/tags
+
+2. DNS çözümleme kontrol:
+   docker exec simon-api nslookup simon-ollama
+
+3. Port erişim testi:
+   docker exec simon-api nc -zv simon-ollama 11434
+
+ÖNCELIK 2: KOD DÜZELTMESİ
+-------------------------
+agent_studio_service.py içinde _call_litellm metodunu düzelt:
+
+MEVCUT DURUM:
+```python
+url = f"{self.litellm_base_url}/v1/chat/completions"
+# HTTP isteği yapıyor ama timeout
+```
+
+ÇÖZÜMLEr:
+A) Ollama OpenAI-Compatible Format (Önerilen):
+   - URL: http://simon-ollama:11434/v1/chat/completions
+   - Payload: OpenAI formatı (mevcut kod çalışmalı)
+
+B) Ollama Native Format:
+   - URL: http://simon-ollama:11434/api/generate  
+   - Payload: {"model": "qwen2.5:1.5b", "prompt": "...", "stream": false}
+
+C) Timeout Artırma:
+   - httpx.AsyncClient(timeout=120) → timeout=5
+   - Hızlı fail-fast
+
+ÖNCELIK 3: ENTEGRASYON TESTİ
+----------------------------
+1. Test script çalıştır: .\tools\agent-studio-test.ps1
+2. Başarılı yanıt: "Hello! How can I assist..."
+3. Token kullanımı: ~30-60 token
+
+===============================================
+📋 DOCKER COMPOSE KONFIGÜRASYON
+===============================================
+
+KULLANILAN DOSYALAR
+-------------------
+- docker-compose.yml (base)
+- docker-compose.agentstudio.override.yml
+- docker-compose.model-fix.yml (model adı düzeltmesi)
+
+ENVIRONMENT VARIABLES
+--------------------
+API Container:
+- LITELLM_BASE_URL=http://simon-litellm:4000
+- OLLAMA_API_BASE=http://simon-ollama:11434
+- SIMON_DEFAULT_MODEL=qwen2.5:1.5b
+- SIMON_MODEL_ALLOWLIST=qwen2.5:1.5b
+- USE_OLLAMA_DIRECT=true (denendi)
+
+LiteLLM Container:
+- OLLAMA_API_BASE=http://simon-ollama:11434
+- Port: 4000
+- Auth: Disabled (--detailed_debug)
+
+Ollama Container:
+- Port: 11434
+- Model: qwen2.5:1.5b (986 MB)
+
+===============================================
+💾 DOSYA YAPISI
+===============================================
+
+C:\Users\ceyhu\Desktop\simonai\
+├── apps/
+│   └── api/
+│       ├── agent_studio_service.py (DÜZELTME GEREKLI)
+│       ├── main.py (database connection düzeltildi)
+│       └── requirements.txt
+├── tools/
+│   ├── agent-studio-test.ps1 (test script)
+│   └── claude_code (Claude Code entegrasyonu)
+├── docs/ (dokümantasyon)
+├── scripts/ (otomasyon scriptleri)
+├── docker-compose.yml
+├── docker-compose.agentstudio.override.yml
+├── docker-compose.model-fix.yml
+├── add-ollama (Ollama kurulum scripti)
+└── auth-fixed.py (API auth düzeltmeleri)
+
+===============================================
+🔧 HATA AYIKLAMA KOMUTLARI
+===============================================
+
+# Container durumu
+docker ps
+
+# Loglar
+docker logs simon-api --tail=50
+docker logs simon-ollama --tail=50
+docker logs simon-litellm --tail=50
+
+# Container içi test
+docker exec simon-api curl http://simon-ollama:11434/api/tags
+docker exec simon-api python3 -c "import httpx; r=httpx.get('http://simon-ollama:11434/api/tags', timeout=5); print(r.text)"
+
+# Restart
+docker restart simon-api
+docker restart simon-litellm
+docker restart simon-ollama
+
+# Full rebuild
+docker compose down
+docker compose -f docker-compose.yml -f docker-compose.agentstudio.override.yml -f docker-compose.model-fix.yml up -d --build
+
+===============================================
+🎯 HEDEF SONUÇ
+===============================================
+
+BAŞARI KRİTERİ
+-------------
+Test komutu çalıştırıldığında:
+```powershell
+.\tools\agent-studio-test.ps1
+```
+
+Beklenen yanıt:
+```json
+{
+  "session_id": "...",
+  "model": "qwen2.5:1.5b",
+  "message": {
+    "role": "assistant",
+    "content": "Hello! How can I assist you today?"
+  }
+}
+```
+
+Status: 200 OK
+Duration: <5 saniye
+Tokens: ~30-60
+
+===============================================
+⚡ CLAUDE CODE ENTEGRASYONU (Önceki Sohbet)
+===============================================
+
+KURULUM BİLGİLERİ
+----------------
+Konum: C:\Users\ceyhu\Desktop\simonai\tools
+Komut: npx @anthropic-ai/claude-code
+
+Ana Proje Konumu: C:\Users\ceyhu\Desktop\simonai
+
+API KEY:
+$env:ANTHROPIC_API_KEY="sk-ant-api03-9pCdU2xt..."
+
+ÇALIŞMA PRENSİPLERİ
+------------------
+1. TEK ADIM - Basit ve uygulanabilir
+2. TEK ÖNERİ - En iyi çözümü direkt söyle
+3. TOKEN TASARRUFU - Kod/metin paylaş, görsel değil
+4. TAM OTOMASYON - Claude Code + Terminal + Scriptler
+
+YENİ SOHBET KURALLARI
+--------------------
+✅ Ekran görüntüsü yerine KOD/METİN paylaş
+✅ Kısa ve net promptlar
+✅ Batch işlemler
+✅ Terminal odaklı çalış
+✅ Scriptlerle çalış
+
+===============================================
+📝 YENİ SOHBETE GEÇİŞ NOTU
+===============================================
+
+Bu dosyayı yeni sohbete ekleyerek şu bilgileri aktar:
+
+1. SORUN: API → Ollama timeout hatası
+2. ÇÖZÜM: Network debug + kod düzeltmesi
+3. DURUM: Container'lar çalışıyor, Ollama hazır
+4. TEST: .\tools\agent-studio-test.ps1
+5. HEDEF: 200 OK + "Hello! How can I assist..."
+6. KONUM: C:\Users\ceyhu\Desktop\simonai
+
+İLK KOMUTLAR (PowerShell):
+cd C:\Users\ceyhu\Desktop\simonai
+docker exec simon-api curl -v http://simon-ollama:11434/api/tags
+
+İLK MESAJ YENİ SOHBETTE:
+"Simon AI Agent Studio API → Ollama timeout hatası var. 
+Network debug yapıp agent_studio_service.py'yi düzelt.
+Proje konumu: C:\Users\ceyhu\Desktop\simonai
+Durum dosyası: simon-ai-proje-durumu.txt"
+
+===============================================
+✅ ÖZET CHECKLIST
+===============================================
+
+[✅] PostgreSQL çalışıyor
+[✅] Redis çalışıyor  
+[✅] Ollama çalışıyor + model yüklü
+[✅] LiteLLM çalışıyor
+[✅] API container çalışıyor
+[✅] Database connection düzeltildi
+[✅] LiteLLM endpoint düzeltildi
+[❌] API → Ollama bağlantısı timeout veriyor
+
+NEXT ACTION: Network debug → Kod fix → Test pass
+
+===============================================
