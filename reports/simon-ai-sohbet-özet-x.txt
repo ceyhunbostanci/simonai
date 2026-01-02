@@ -1,0 +1,70 @@
+===============================================
+SIMON AI - CLAUDE OTOMASYON KURULUM ÖZETİ
+===============================================
+
+📋 KURULANLAR
+===============================================
+
+1. CLAUDE CODE
+   - Terminal üzerinden direkt Claude ile çalışma
+   - Komut: npx @anthropic-ai/claude-code
+   - Konum: C:\Users\ceyhu\Desktop\simonai\tools
+
+2. API OTOMASYON
+   - ai_helper.py - Kod inceleme scripti
+   - API Key ayarlandı
+   - Anthropic 0.75.0 yüklendi
+
+3. TOKEN TASARRUFU STRATEJİSİ
+   - Ekran görüntüsü yerine kod/metin
+   - Kısa ve net promptlar
+   - Batch işlemler
+
+===============================================
+📌 ÇALIŞMA PRENSİPLERİ (Her sohbette uygulanacak)
+===============================================
+
+1. TEK ADIM İLERLEME
+   ✅ Basit ve uygulanabilir talimatlar
+   ❌ Karmaşık açıklamalar yok
+
+2. TEK ÖNERİ
+   ✅ En iyi çözümü direkt söyle
+   ❌ "veya" kullanma, seçenek sunma
+
+3. TOKEN TASARRUFU
+   ✅ Kod/metin paylaş
+   ❌ Ekran görüntüsü paylaşma
+   ✅ Kısa promptlar
+   ✅ Batch işlemler
+
+4. TAM OTOMASYON
+   ✅ Claude Code kullan
+   ✅ Terminal odaklı çalış
+   ✅ Scriptlerle çalış
+
+===============================================
+🚀 KULLANIM
+===============================================
+
+CLAUDE CODE BAŞLATMA:
+cd C:\Users\ceyhu\Desktop\simonai\tools
+npx @anthropic-ai/claude-code
+
+KOD İNCELEME:
+python ai_helper.py dosya_adi.py
+
+API KEY (her yeni PowerShell için):
+$env:ANTHROPIC_API_KEY="sk-ant-api03-9pCdU2xtIPdT-FOMlW9MNzQAT7SRRjxVBd2cXENcxM..."
+
+===============================================
+✅ SONRAKI ADIMLAR
+===============================================
+
+Simon AI projesinde:
+- Claude Code ile çalış
+- Ekran görüntüsü yerine kod paylaş
+- Kısa komutlar ver
+- Token tasarruflu çalış
+
+===============================================

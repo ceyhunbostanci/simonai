@@ -1,0 +1,5 @@
+﻿# status.ps1
+Write-Host "=== Automation OS Status ==="
+Write-Host "Root: C:\Users\ceyhu\Desktop\simonai"
+Write-Host "Docs:"
+Get-ChildItem "C:\Users\ceyhu\Desktop\simonai\..\docs" | Select-Object Name

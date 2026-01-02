@@ -1,0 +1,7 @@
+﻿FAZ 5 KURULUM LOG
+==================
+Tarih: 01/02/2026 12:55:13
+Backend: OK
+Frontend: OK
+Reports: C:\Users\ceyhu\Desktop\simonai\reports
+Frontend: C:\Users\ceyhu\Desktop\simonai\frontend

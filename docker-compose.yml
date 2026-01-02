@@ -7,11 +7,13 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - 5432:5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - simon-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [CMD-SHELL, pg_isready -U postgres]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -20,9 +22,11 @@ services:
     image: redis:7-alpine
     container_name: simon-redis
     ports:
-      - "6379:6379"
+      - 6379:6379
+    networks:
+      - simon-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [CMD, redis-cli, ping]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,11 +35,13 @@ services:
     image: ollama/ollama:latest
     container_name: simon-ollama
     ports:
-      - "11434:11434"
+      - 11434:11434
     volumes:
       - ollama_data:/root/.ollama
+    networks:
+      - simon-network
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: [CMD, ollama, list]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -44,7 +50,7 @@ services:
     image: ghcr.io/berriai/litellm:main-latest
     container_name: simon-litellm
     ports:
-      - "4000:4000"
+      - 4000:4000
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/litellm
       - REDIS_HOST=redis
@@ -53,6 +59,8 @@ services:
     volumes:
       - ./litellm-config.yaml:/app/config.yaml
     command: --config /app/config.yaml
+    networks:
+      - simon-network
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,7 +75,7 @@ services:
       dockerfile: Dockerfile
     container_name: simon-api
     ports:
-      - "8000:8000"
+      - 8000:8000
     environment:
       - ENVIRONMENT=development
       - DEBUG=true
@@ -77,6 +85,8 @@ services:
       - SECRET_KEY=dev-secret-key-change-in-production
       - LOG_LEVEL=INFO
       - ENABLE_METRICS=true
+    networks:
+      - simon-network
     depends_on:
       postgres:
         condition: service_healthy

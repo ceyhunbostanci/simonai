@@ -1,0 +1,5 @@
+﻿# Computer Use / Playwright allowlist
+# Ã–rnek:
+# github.com
+# api.openai.com
+# console.anthropic.com

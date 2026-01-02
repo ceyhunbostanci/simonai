@@ -1,4 +1,4 @@
-﻿# Celery Worker Override
+# Celery Worker Override
 services:
   celery-worker:
     build:
@@ -20,6 +20,9 @@ services:
       egress-proxy:
         condition: service_started
     networks:
-      - default
+      - simon-network
     restart: unless-stopped
 
+networks:
+  simon-network:
+    external: true

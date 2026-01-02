@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simon AI Agent Studio | Master Blueprint Explorer</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Chosen Palette: Corporate Slate & Tech Blue -->
+    <!-- 
+        Primary Background: Slate-50 (#f8fafc)
+        Card Background: White (#ffffff)
+        Text Primary: Slate-800 (#1e293b)
+        Text Secondary: Slate-500 (#64748b)
+        Accent/Brand: Blue-600 (#2563eb)
+        Success: Emerald-500 (#10b981)
+        Warning: Amber-500 (#f59e0b)
+    -->
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Chart Container Styling - Mandatory Requirements */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%; 
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container { height: 350px; }
+        }
+
+        /* Interactive Element Styles */
+        .nav-item.active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
+        .arch-box { transition: all 0.2s ease; cursor: pointer; }
+        .arch-box:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-color: #2563eb; }
+        .arch-box.selected { border-color: #2563eb; background-color: #eff6ff; ring: 2px solid #2563eb; }
+        
+        .phase-card { transition: all 0.2s ease; border-left: 4px solid transparent; }
+        .phase-card:hover { background-color: #f8fafc; }
+        .phase-card.active { border-left-color: #2563eb; background-color: #eff6ff; }
+
+        .btn-primary { @apply bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm; }
+        .btn-secondary { @apply bg-white text-slate-700 border border-slate-300 px-4 py-2 rounded-lg hover:bg-slate-50 transition; }
+    </style>
+    
+    <!-- Application Structure Plan: 
+         1. Header: Brand & Global Status.
+         2. Navigation: Tabs for Dashboard, Architecture, Roadmap, ROI, Tech Stack.
+         3. Dynamic Content Area:
+            - Dashboard: High-level KPIs from the Executive Summary.
+            - Architecture: Interactive Block Diagram explaining the "Hybrid AI" & "Orchestrator" model.
+            - Roadmap: Gantt-style interactive list for the 18-day plan.
+            - ROI: Interactive calculator comparing Simon AI vs. Traditional Dev costs.
+            - Tech Stack: Filterable list of AI models (Ollama/GPT/Claude) and Tools.
+            - Live Status: Terminal view parsing the provided logs to show current "Healthy" state.
+         This structure allows the user to switch between the "Business Case" (ROI) and "Technical Implementation" (Arch/Stack) easily.
+    -->
+    
+    <!-- Visualization & Content Choices:
+         - ROI: Chart.js Bar & Line charts. Goal: Visualize the massive cost gap ($8000 vs $41).
+         - Architecture: CSS Grid layout with interactive "Cards". Goal: Explain complex relationships without SVG.
+         - Roadmap: Styled List. Goal: Show the linear progression of the 18-day plan.
+         - Status: Mock Terminal. Goal: Provide immediate feedback on the current project state from uploaded logs.
+    -->
+    
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-xl">S</div>
+                    <div>
+                        <h1 class="text-xl font-bold text-slate-900 tracking-tight">Simon AI <span class="text-slate-400 font-normal">| Agent Studio v3.1</span></h1>
+                        <p class="text-xs text-slate-500 hidden sm:block">Hibrit Yapay Zeka Geliştirme Platformu</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100 text-sm font-medium">
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                        API System Online
+                    </div>
+                    <button id="download-report-btn" class="text-sm font-medium text-blue-600 hover:text-blue-800 transition" onclick="alert('Bu özellik tam sürümde aktif olacaktır.')">Raporu İndir</button>
+                </div>
+            </div>
+        </div>
+        <!-- Navigation -->
+        <div class="bg-white border-b border-slate-200 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <nav class="flex space-x-8 overflow-x-auto no-scrollbar" aria-label="Tabs">
+                    <button class="nav-item active py-4 px-1 text-sm font-medium whitespace-nowrap" onclick="app.navigate('dashboard')">Özet Paneli</button>
+                    <button class="nav-item py-4 px-1 text-sm font-medium whitespace-nowrap text-slate-500 hover:text-slate-700" onclick="app.navigate('architecture')">Teknik Mimari</button>
+                    <button class="nav-item py-4 px-1 text-sm font-medium whitespace-nowrap text-slate-500 hover:text-slate-700" onclick="app.navigate('roadmap')">Uygulama Planı (18 Gün)</button>
+                    <button class="nav-item py-4 px-1 text-sm font-medium whitespace-nowrap text-slate-500 hover:text-slate-700" onclick="app.navigate('roi')">Maliyet & ROI</button>
+                    <button class="nav-item py-4 px-1 text-sm font-medium whitespace-nowrap text-slate-500 hover:text-slate-700" onclick="app.navigate('models')">AI Model Stack</button>
+                    <button class="nav-item py-4 px-1 text-sm font-medium whitespace-nowrap text-slate-500 hover:text-slate-700" onclick="app.navigate('terminal')">Sistem Durumu (Logs)</button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow bg-slate-50 py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" id="content-area">
+            <!-- Content injected via JS -->
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-8 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8 text-sm">
+            <div>
+                <h3 class="text-white font-bold mb-2">Simon AI</h3>
+                <p>Enterprise Grade AI Agent Studio.</p>
+                <p class="mt-2">v3.1 Production Blueprint</p>
+            </div>
+            <div>
+                <h3 class="text-white font-bold mb-2">Doküman Kaynakları</h3>
+                <ul class="space-y-1">
+                    <li>Simon_AI_v3_1_FINAL.pdf</li>
+                    <li>Master_Proje_Dokumani_v0.4.pdf</li>
+                    <li>PROJECT_STATE.md</li>
+                </ul>
+            </div>
+            <div class="text-right">
+                <p>&copy; 2025 Simon AI Project.</p>
+                <p class="mt-1 text-xs text-slate-600">Generated for Technical Review.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Templates & Scripts -->
+    <script>
+        // --- DATA STORE ---
+        const projectData = {
+            kpis: [
+                { title: "Aylık Maliyet (Hedef)", value: "$41", suffix: "/ay", change: "-99.5%", desc: "Geleneksel geliştiriciye kıyasla", color: "emerald" },
+                { title: "Yatırım Dönüşü (ROI)", value: "Gün 1", suffix: "", change: "Anında", desc: "İlk görev tamamlandığında", color: "blue" },
+                { title: "Teslim Süresi", value: "18", suffix: "Gün", change: "MVP-1", desc: "Üretim ortamına geçiş", color: "indigo" },
+                { title: "Kapasite", value: "100+", suffix: "Görev", change: "/ay", desc: "Otomatik kodlama görevi", color: "purple" }
+            ],
+            architecture: [
+                {
+                    id: "orch",
+                    name: "AI Orchestrator",
+                    tech: "FastAPI + Python",
+                    role: "Ana Beyin",
+                    desc: "Tüm sistemin merkezi yönetim birimi. Kullanıcıdan gelen görevleri analiz eder, planlar ve uygun alt sistemlere dağıtır. State management ve güvenlik politikalarını (Approval Gate) uygular.",
+                    details: ["State Management: PostgreSQL", "Queue: Redis + Celery", "Security: API Key Isolation"]
+                },
+                {
+                    id: "gateway",
+                    name: "LiteLLM Gateway",
+                    tech: "LiteLLM Proxy",
+                    role: "Model Yönlendirici",
+                    desc: "Farklı yapay zeka sağlayıcıları (OpenAI, Anthropic, Ollama) arasında akıllı yönlendirme yapar. Maliyet kontrolü ve failover (yedekleme) mekanizmalarını yönetir.",
+                    details: ["Routing: Priority Based", "Failover: Cloud -> Local", "Cost Tracking: Token based"]
+                },
+                {
+                    id: "runner",
+                    name: "UI Runner / Sandbox",
+                    tech: "Docker + Playwright",
+                    role: "Uygulayıcı",
+                    desc: "Güvenli, izole edilmiş bir tarayıcı ortamında (Sandbox) AI'nın ürettiği kodları çalıştırır, test eder ve sonuçları raporlar. İnternet erişimi Egress Proxy ile kısıtlıdır.",
+                    details: ["Isolation: Docker Network", "Tool: Browser Use / Playwright", "Security: Egress Allowlist"]
+                },
+                {
+                    id: "db",
+                    name: "Veri Katmanı",
+                    tech: "PostgreSQL + Redis",
+                    role: "Hafıza",
+                    desc: "Uzun süreli hafıza (vektör veritabanı dahil) ve kısa süreli işlem kuyruklarını tutar. Audit logları burada saklanır.",
+                    details: ["Vector DB: pgvector", "Cache: Redis 7", "Audit: Immutable Logs"]
+                }
+            ],
+            roadmap: [
+                { phase: "Faz 0: Hazırlık", days: "Gün 1-2", status: "Tamamlandı", tasks: ["Credential İzolasyonu", "Egress Proxy Kurulumu", "Docker Altyapısı", "Repo & CI/CD Setup"] },
+                { phase: "Faz 1: Core", days: "Gün 3-10", status: "Aktif", tasks: ["Canonical API (api/tasks)", "Orchestrator Akışları", "LiteLLM Entegrasyonu", "Redis Queue Yapısı"] },
+                { phase: "Faz 2: Güvenlik & UI", days: "Gün 11-14", status: "Beklemede", tasks: ["Approval Gate UI", "Audit Ledger", "Policy Entegrasyonu", "Uçtan Uca Testler"] },
+                { phase: "Faz 3: Prodüksiyon", days: "Gün 15-18", status: "Planlandı", tasks: ["Stabilizasyon", "Yük Testleri", "Güvenlik Taraması", "Production Release (v1.0)"] }
+            ],
+            models: [
+                { name: "Ollama (Local)", type: "Free", usage: "Genel / Düşük Öncelik", models: ["gemma3", "qwen2.5", "mistral", "deepseek-r1"] },
+                { name: "OpenAI", type: "Paid", usage: "Karmaşık Mantık / Agent", models: ["GPT-4o", "GPT-5.2 (Planned)"] },
+                { name: "Anthropic", type: "Paid", usage: "Kodlama / Uzun Context", models: ["Claude 3.5 Sonnet", "Claude Opus 4.5"] },
+                { name: "Google", type: "Paid", usage: "Multimodal / Hız", models: ["Gemini 2.0 Flash", "Gemini 3 Pro"] }
+            ],
+            logs: `
+# RUN LOG SUMMARY (2025-12-27)
+----------------------------------------
+STATUS: ✅ SUCCESS - API OPERATIONAL
+
+RUNNING SERVICES:
+[+] simon-postgres  (Port 5432)  - Healthy
+[+] simon-redis     (Port 6379)  - Healthy
+[+] simon-litellm   (Port 4000)  - Started
+[+] simon-api       (Port 8000)  - RUNNING
+
+HEALTH CHECK:
+GET http://localhost:8000/health
+> 200 OK
+> { "status": "healthy", "version": "3.1.0" }
+
+CRITICAL FIXES APPLIED:
+- models.py metadata fixed
+- auth.py UserRole fixed
+- Docker cache cleared
+            `
+        };
+
+        // --- APP LOGIC ---
+        const app = {
+            currentPage: 'dashboard',
+
+            init: function() {
+                this.navigate('dashboard');
+            },
+
+            navigate: function(pageId) {
+                this.currentPage = pageId;
+                
+                // Update Nav
+                document.querySelectorAll('.nav-item').forEach(el => {
+                    el.classList.remove('active', 'text-blue-600', 'border-blue-600');
+                    el.classList.add('text-slate-500', 'hover:text-slate-700');
+                    if(el.getAttribute('onclick').includes(pageId)) {
+                        el.classList.add('active', 'text-blue-600');
+                        el.classList.remove('text-slate-500');
+                    }
+                });
+
+                // Render Content
+                const contentDiv = document.getElementById('content-area');
+                contentDiv.innerHTML = ''; // Clear
+
+                switch(pageId) {
+                    case 'dashboard': this.renderDashboard(contentDiv); break;
+                    case 'architecture': this.renderArchitecture(contentDiv); break;
+                    case 'roadmap': this.renderRoadmap(contentDiv); break;
+                    case 'roi': this.renderROI(contentDiv); break;
+                    case 'models': this.renderModels(contentDiv); break;
+                    case 'terminal': this.renderTerminal(contentDiv); break;
+                }
+            },
+
+            renderDashboard: function(container) {
+                // Intro
+                const intro = document.createElement('div');
+                intro.className = 'mb-8';
+                intro.innerHTML = `
+                    <h2 class="text-2xl font-bold text-slate-900">Yönetici Özeti</h2>
+                    <p class="mt-2 text-slate-600 max-w-3xl">
+                        Simon AI Agent Studio (v3.1), yazılım geliştirme döngüsünü otonom yapay zeka ajanları ile %99 oranında daha düşük maliyetle gerçekleştirmeyi hedefleyen kurumsal bir platformdur. 
+                        Bu panel, projenin mevcut durumunu, hedeflerini ve kritik başarı metriklerini özetler.
+                    </p>
+                `;
+                container.appendChild(intro);
+
+                // KPI Grid
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8';
+                
+                projectData.kpis.forEach(kpi => {
+                    grid.innerHTML += `
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wider">${kpi.title}</h3>
+                                <span class="text-${kpi.color}-500 bg-${kpi.color}-50 px-2 py-1 rounded text-xs font-bold">${kpi.change}</span>
+                            </div>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-3xl font-bold text-slate-900">${kpi.value}</span>
+                                <span class="text-sm text-slate-500 font-medium">${kpi.suffix}</span>
+                            </div>
+                            <p class="mt-2 text-xs text-slate-400">${kpi.desc}</p>
+                        </div>
+                    `;
+                });
+                container.appendChild(grid);
+
+                // Quick Actions & Status
+                const bottomSection = document.createElement('div');
+                bottomSection.className = 'grid grid-cols-1 lg:grid-cols-3 gap-6';
+                bottomSection.innerHTML = `
+                    <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="text-lg font-bold text-slate-900 mb-4">Proje Vizyonu & Hedef</h3>
+                        <div class="prose prose-sm text-slate-600">
+                            <ul class="list-disc pl-5 space-y-2">
+                                <li><strong>Hedef:</strong> Kurumsal, güvenli ve ölçeklenebilir AI Agent geliştirme stüdyosu kurmak.</li>
+                                <li><strong>Yöntem:</strong> Hibrit Yapay Zeka (Lokal + Cloud) ve "Human-in-the-loop" onay mekanizması.</li>
+                                <li><strong>Fark:</strong> Kullanıcı sadece başlangıç promptunu verir ve kritik noktalarda onaylar; Simon AI uçtan uca planlar, kodlar ve test eder.</li>
+                                <li><strong>Durum (27.12.2025):</strong> API servisi Windows üzerinde başarıyla çalıştırıldı (MVP-1 Hazır).</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 text-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-lg font-bold mb-4">Hızlı Erişim</h3>
+                        <div class="space-y-3">
+                            <button onclick="app.navigate('roadmap')" class="w-full text-left px-4 py-3 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition flex items-center justify-between group">
+                                <span>📅 18 Günlük Plan</span>
+                                <span class="text-slate-400 group-hover:text-white">→</span>
+                            </button>
+                            <button onclick="app.navigate('architecture')" class="w-full text-left px-4 py-3 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition flex items-center justify-between group">
+                                <span>🏗️ Sistem Mimarisi</span>
+                                <span class="text-slate-400 group-hover:text-white">→</span>
+                            </button>
+                            <button onclick="app.navigate('terminal')" class="w-full text-left px-4 py-3 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition flex items-center justify-between group">
+                                <span>💻 Log Kayıtları</span>
+                                <span class="text-emerald-400 text-xs font-mono">LIVE</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(bottomSection);
+            },
+
+            renderArchitecture: function(container) {
+                container.innerHTML = `
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-bold text-slate-900">Teknik Mimari (v3.1)</h2>
+                        <p class="mt-2 text-slate-600">Simon AI, mikroservis mimarisi üzerine kurulu, güvenlik odaklı (Sandbox & Egress Proxy) bir yapıdır. Aşağıdaki bloklara tıklayarak detayları inceleyebilirsiniz.</p>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Diagram Column -->
+                        <div class="lg:col-span-2 space-y-4">
+                            <!-- User Layer -->
+                            <div class="flex justify-center">
+                                <div class="bg-slate-100 border-2 border-dashed border-slate-300 rounded-lg p-4 w-2/3 text-center text-slate-500 text-sm">
+                                    Kullanıcı (Web UI / CLI)
+                                </div>
+                            </div>
+                            <!-- Arrow -->
+                            <div class="flex justify-center text-slate-300">↓ HTTPS / WSS</div>
+                            
+                            <!-- Main System Box -->
+                            <div class="border-2 border-slate-200 rounded-xl p-6 bg-white relative">
+                                <div class="absolute -top-3 left-4 bg-white px-2 text-xs font-bold text-slate-400 uppercase">Docker Compose Network</div>
+                                
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div class="arch-box p-4 border border-slate-200 rounded-lg bg-blue-50 text-center" onclick="app.showArchDetail('orch')">
+                                        <div class="text-2xl mb-2">🧠</div>
+                                        <div class="font-bold text-slate-800">Orchestrator</div>
+                                        <div class="text-xs text-slate-500">FastAPI Core</div>
+                                    </div>
+                                    <div class="arch-box p-4 border border-slate-200 rounded-lg bg-indigo-50 text-center" onclick="app.showArchDetail('gateway')">
+                                        <div class="text-2xl mb-2">🔌</div>
+                                        <div class="font-bold text-slate-800">LiteLLM Gateway</div>
+                                        <div class="text-xs text-slate-500">Model Routing</div>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-center text-slate-300 mb-4">↕ Async Queue (Redis)</div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="arch-box p-4 border border-slate-200 rounded-lg bg-amber-50 text-center" onclick="app.showArchDetail('runner')">
+                                        <div class="text-2xl mb-2">🤖</div>
+                                        <div class="font-bold text-slate-800">UI Runner</div>
+                                        <div class="text-xs text-slate-500">Browser Sandbox</div>
+                                    </div>
+                                    <div class="arch-box p-4 border border-slate-200 rounded-lg bg-emerald-50 text-center" onclick="app.showArchDetail('db')">
+                                        <div class="text-2xl mb-2">💾</div>
+                                        <div class="font-bold text-slate-800">Database</div>
+                                        <div class="text-xs text-slate-500">PostgreSQL + Vector</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Details Panel -->
+                        <div class="lg:col-span-1">
+                            <div id="arch-details" class="bg-white p-6 rounded-xl shadow-lg border border-slate-100 h-full sticky top-24">
+                                <div class="text-center text-slate-400 mt-20">
+                                    <p>Detayları görmek için<br>bir bileşene tıklayın.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            showArchDetail: function(id) {
+                const component = projectData.architecture.find(c => c.id === id);
+                if (!component) return;
+
+                // Highlight box
+                document.querySelectorAll('.arch-box').forEach(el => el.classList.remove('selected'));
+                // Simulating selection visually (in a real app, pass 'this' or use ID to find element)
+
+                const panel = document.getElementById('arch-details');
+                panel.innerHTML = `
+                    <div class="flex items-center gap-3 mb-4">
+                        <h3 class="text-xl font-bold text-slate-900">${component.name}</h3>
+                        <span class="px-2 py-1 rounded bg-slate-100 text-xs font-mono text-slate-600">${component.tech}</span>
+                    </div>
+                    <p class="text-slate-600 mb-6 text-sm leading-relaxed">${component.desc}</p>
+                    
+                    <h4 class="font-bold text-slate-800 text-sm mb-3 uppercase tracking-wide">Teknik Özellikler</h4>
+                    <ul class="space-y-2 mb-6">
+                        ${component.details.map(d => `<li class="flex items-center text-sm text-slate-600"><span class="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></span>${d}</li>`).join('')}
+                    </ul>
+                    
+                    <div class="mt-auto pt-4 border-t border-slate-100">
+                        <span class="text-xs font-bold text-slate-400 uppercase">Rolü</span>
+                        <p class="text-slate-800 font-medium">${component.role}</p>
+                    </div>
+                `;
+            },
+
+            renderRoadmap: function(container) {
+                container.innerHTML = `
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-bold text-slate-900">Uygulama Yol Haritası (18 Gün)</h2>
+                        <p class="mt-2 text-slate-600">MVP-1 sürümünün "Sıfırdan Canlıya" (Zero-to-Prod) geçiş planı. Her fazın çıktıları tanımlanmıştır.</p>
+                    </div>
+                    <div class="space-y-4">
+                        ${projectData.roadmap.map((phase, idx) => `
+                            <div class="phase-card bg-white p-4 rounded-lg shadow-sm border border-slate-200 cursor-pointer" onclick="this.classList.toggle('active'); this.querySelector('.tasks').classList.toggle('hidden');">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">${idx + 1}</div>
+                                        <div>
+                                            <h3 class="font-bold text-slate-900">${phase.phase}</h3>
+                                            <span class="text-xs text-slate-500">${phase.days}</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="px-3 py-1 rounded-full text-xs font-medium ${phase.status === 'Tamamlandı' ? 'bg-emerald-100 text-emerald-700' : phase.status === 'Aktif' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}">
+                                            ${phase.status}
+                                        </span>
+                                        <span class="text-slate-400">▼</span>
+                                    </div>
+                                </div>
+                                <div class="tasks hidden mt-4 pl-12 pt-4 border-t border-slate-100">
+                                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-2">Görevler & Teslimatlar</h4>
+                                    <ul class="space-y-1">
+                                        ${phase.tasks.map(t => `<li class="text-sm text-slate-700 flex items-center"><span class="text-blue-400 mr-2">✓</span> ${t}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            },
+
+            renderROI: function(container) {
+                container.innerHTML = `
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-bold text-slate-900">Maliyet Analizi & ROI</h2>
+                        <p class="mt-2 text-slate-600">Simon AI, geleneksel geliştirme maliyetlerini %99.5 oranında düşürmeyi hedefler. Aşağıdaki hesaplayıcıyı kullanarak potansiyel tasarrufu görün.</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Controls -->
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit">
+                            <h3 class="font-bold text-slate-900 mb-6">Parametreler</h3>
+                            
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Aylık Görev Sayısı</label>
+                                <input type="range" min="10" max="200" value="50" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" id="taskRange" oninput="app.updateROI()">
+                                <div class="flex justify-between text-xs text-slate-500 mt-2">
+                                    <span>10 Görev</span>
+                                    <span id="taskValue" class="font-bold text-blue-600 text-lg">50</span>
+                                    <span>200 Görev</span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4 text-sm">
+                                <div class="flex justify-between py-2 border-b border-slate-100">
+                                    <span class="text-slate-500">Dev Saatlik Ücret</span>
+                                    <span class="font-mono">$50</span>
+                                </div>
+                                <div class="flex justify-between py-2 border-b border-slate-100">
+                                    <span class="text-slate-500">AI Görev Maliyeti</span>
+                                    <span class="font-mono">~$0.82</span>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 bg-emerald-50 p-4 rounded-lg border border-emerald-100">
+                                <div class="text-xs text-emerald-600 font-bold uppercase mb-1">Tahmini Tasarruf (Aylık)</div>
+                                <div class="text-2xl font-bold text-emerald-700" id="savingsValue">$7,959</div>
+                            </div>
+                        </div>
+
+                        <!-- Charts -->
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                                <h4 class="text-sm font-bold text-slate-700 mb-4 text-center">Maliyet Karşılaştırması (USD)</h4>
+                                <div class="chart-container">
+                                    <canvas id="costChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                setTimeout(() => this.initCharts(), 100);
+            },
+
+            initCharts: function() {
+                const ctx = document.getElementById('costChart').getContext('2d');
+                window.roiChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Geleneksel Yazılımcı', 'Simon AI'],
+                        datasets: [{
+                            label: 'Aylık Maliyet ($)',
+                            data: [8000, 41],
+                            backgroundColor: ['#94a3b8', '#2563eb'],
+                            borderRadius: 6,
+                            barThickness: 60
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return '$' + context.raw.toLocaleString();
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+            },
+
+            updateROI: function() {
+                const tasks = parseInt(document.getElementById('taskRange').value);
+                document.getElementById('taskValue').innerText = tasks;
+
+                const traditionalCost = tasks * 4 * 50; // 4 hours/task * $50/hr
+                const aiCost = 41 + (tasks * 0.5); // Base + token cost approx
+                const savings = traditionalCost - aiCost;
+
+                document.getElementById('savingsValue').innerText = '$' + savings.toLocaleString();
+
+                if(window.roiChart) {
+                    window.roiChart.data.datasets[0].data = [traditionalCost, aiCost];
+                    window.roiChart.update();
+                }
+            },
+
+            renderModels: function(container) {
+                container.innerHTML = `
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-bold text-slate-900">AI Model Kataloğu</h2>
+                        <p class="mt-2 text-slate-600">v0.4 Dokümanına göre desteklenen model ve sağlayıcılar. Simon AI, "Canonical API" ile bu modeller arasında otomatik geçiş yapar.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        ${projectData.models.map(provider => `
+                            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-slate-900">${provider.name}</h3>
+                                    <span class="px-2 py-1 rounded text-xs font-bold ${provider.type === 'Free' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${provider.type}</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mb-4 bg-slate-50 p-2 rounded">Kullanım: ${provider.usage}</p>
+                                <ul class="space-y-2">
+                                    ${provider.models.map(m => `<li class="flex items-center text-sm text-slate-700"><span class="w-1.5 h-1.5 bg-slate-400 rounded-full mr-2"></span>${m}</li>`).join('')}
+                                </ul>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            },
+
+            renderTerminal: function(container) {
+                container.innerHTML = `
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-bold text-slate-900">Canlı Sistem Logları</h2>
+                        <p class="mt-2 text-slate-600">Sistemin son çalışma durumu (RUN_LOG dosyasından alınmıştır).</p>
+                    </div>
+                    <div class="bg-slate-900 rounded-xl shadow-lg p-4 overflow-hidden font-mono text-sm text-slate-300 relative">
+                        <div class="flex items-center gap-2 mb-4 border-b border-slate-700 pb-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                            <span class="ml-2 text-xs text-slate-500">simon-ai-agent-studio — production</span>
+                        </div>
+                        <pre class="whitespace-pre-wrap overflow-x-auto max-h-[500px] text-xs md:text-sm leading-relaxed" id="terminal-content"></pre>
+                    </div>
+                `;
+                
+                // Typing effect for realism
+                const termContent = document.getElementById('terminal-content');
+                let i = 0;
+                const txt = projectData.logs;
+                const typeWriter = () => {
+                    if (i < txt.length) {
+                        termContent.innerHTML += txt.charAt(i);
+                        i++;
+                        setTimeout(typeWriter, 2); // Fast typing
+                    }
+                };
+                typeWriter();
+            }
+        };
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>

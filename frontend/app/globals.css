@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 15 23 42;      /* slate-950 */
+    --foreground: 241 245 249;   /* slate-100 */
+    --primary: 14 165 233;       /* sky-500 */
+    --secondary: 100 116 139;    /* slate-500 */
+    --border: 51 65 85;          /* slate-700 */
+    --error: 239 68 68;          /* red-500 */
+    --success: 16 185 129;       /* green-500 */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-secondary rounded-lg;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+}
+
+/* Animation utilities */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Code syntax highlighting */
+pre {
+  @apply rounded-lg bg-slate-900 p-4 overflow-x-auto;
+}
+
+code {
+  @apply font-mono text-sm;
+}
+
+/* Selection */
+::selection {
+  @apply bg-primary text-white;
+}
